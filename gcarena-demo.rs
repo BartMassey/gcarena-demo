@@ -117,9 +117,9 @@ impl<'gc> List<'gc> {
     ///
     /// It would be more Rustic to return an `Option<u32>`,
     /// but this way is LISP tradition.
-    fn car(&self) -> u32 {
-        if let Cons { car, .. } = *self.0.read() {
-            car
+    fn car(self) -> u32 {
+        if let Cons { car, .. } = &*self.0.read() {
+            *car
         } else {
             panic!("car of nil")
         }
@@ -130,7 +130,7 @@ impl<'gc> List<'gc> {
     ///
     /// It would be more Rustic to return an `Option<List>`,
     /// but this way is LISP tradition.
-    fn cdr(&self) -> Self {
+    fn cdr(self) -> Self {
         if let Cons { cdr, .. } = &*self.0.read() {
             *cdr
         } else {
@@ -139,20 +139,19 @@ impl<'gc> List<'gc> {
     }
 
     /// Check whether a list is empty.
-    fn is_nil(&self) -> bool {
+    fn is_nil(self) -> bool {
         matches!(&*self.0.read(), Nil)
     }
 
     /// Print the list on one line in LISP format. This will
     /// loop forever if the list is cyclic.
-    fn print(&self) {
-        let mut cur = *self;
+    fn print(mut self) {
         let mut sep = "";
         print!("(");
-        while !cur.is_nil() {
+        while !self.is_nil() {
             print!("{sep}");
-            print!("{}", cur.car());
-            cur = cur.cdr();
+            print!("{}", self.car());
+            self = self.cdr();
             sep = " ";
         }
         println!(")");
