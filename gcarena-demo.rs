@@ -93,6 +93,12 @@ impl<'gc> List<'gc> {
         *self.0.read()
     }
 
+    /// Put a new cons cell into the list. This
+    /// requires a `write()`.
+    fn set_cell(self, mc: MutationContext<'gc, '_>, c: ConsCell<'gc>) {
+        *self.0.write(mc) = c;
+    }
+
     /// An empty [List] is just a pointer to a [Nil] cons cell
     /// in memory.
     ///
@@ -184,7 +190,7 @@ impl<'gc> List<'gc> {
             prev = self;
             self = self.cdr();
         }
-        *prev.cdr().0.write(mc) = *other.0.read();
+        prev.cdr().set_cell(mc, other.cell());
     }
 }
 
