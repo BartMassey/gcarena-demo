@@ -27,6 +27,23 @@ use gc_arena::*;
 #[collect(no_drop)]
 struct MyRoot<'gc>(GcCell<'gc, Vec<List<'gc>>>);
 
+impl<'gc> MyRoot<'gc> {
+    /// Get a given list from the root. The `read()`
+    /// primitive is necessary to ensure correctness of the
+    /// read.
+    fn get_list(&self, index: usize) -> List<'gc> {
+        let lists: &Vec<List<'_>> = &self.0.read();
+        lists[index]
+    }
+
+    /// Add a list to the root. The `write()` primitive is
+    /// necessary to ensure correctness of the write, as it
+    /// adds a "fence".
+    fn push_list(&self, mc: MutationContext<'gc, '_>, list: List<'gc>) {
+        self.0.write(mc).push(list);
+    }
+}
+
 // This macro will define a `struct MyArena` that knows
 // about its roots.
 make_arena!(MyArena, MyRoot);
@@ -152,8 +169,8 @@ fn main() {
     arena.mutate(|mc, root| {
         let l1 = List::new(mc).cons(mc, 1);
         let l2 = l1.cons(mc, 2);
-        root.0.write(mc).push(l1);
-        root.0.write(mc).push(l2);
+        root.push_list(mc, l1);
+        root.push_list(mc, l2);
     });
 
     // Print the two root lists. Yep, they're still there
@@ -163,8 +180,7 @@ fn main() {
     // is generally better to break up the operations into
     // small chunks so the GC gets a chance to operate.
     arena.mutate(|_, root| {
-        let roots: &Vec<List<'_>> = &root.0.read();
-        roots[0].print();
-        roots[1].print();
+        root.get_list(0).print();
+        root.get_list(1).print();
     });
 }
