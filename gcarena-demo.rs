@@ -87,6 +87,12 @@ use ConsCell::*;
 struct List<'gc>(GcCell<'gc, ConsCell<'gc>>);
 
 impl<'gc> List<'gc> {
+    /// Get the cons cell out of the list. This
+    /// requires a `read()`.
+    fn cell(self) -> ConsCell<'gc> {
+        *self.0.read()
+    }
+
     /// An empty [List] is just a pointer to a [Nil] cons cell
     /// in memory.
     ///
@@ -118,8 +124,8 @@ impl<'gc> List<'gc> {
     /// It would be more Rustic to return an `Option<u32>`,
     /// but this way is LISP tradition.
     fn car(self) -> u32 {
-        if let Cons { car, .. } = &*self.0.read() {
-            *car
+        if let Cons { car, .. } = self.cell() {
+            car
         } else {
             panic!("car of nil")
         }
@@ -131,8 +137,8 @@ impl<'gc> List<'gc> {
     /// It would be more Rustic to return an `Option<List>`,
     /// but this way is LISP tradition.
     fn cdr(self) -> Self {
-        if let Cons { cdr, .. } = &*self.0.read() {
-            *cdr
+        if let Cons { cdr, .. } = self.cell() {
+            cdr
         } else {
             panic!("cdr of nil")
         }
@@ -140,7 +146,7 @@ impl<'gc> List<'gc> {
 
     /// Check whether a list is empty.
     fn is_nil(self) -> bool {
-        matches!(&*self.0.read(), Nil)
+        matches!(self.cell(), Nil)
     }
 
     /// Print the list on one line in LISP format. This will
