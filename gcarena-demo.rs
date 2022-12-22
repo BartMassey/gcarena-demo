@@ -149,18 +149,42 @@ impl<'gc> List<'gc> {
         matches!(self.cell(), Nil)
     }
 
-    /// Print the list on one line in LISP format. This will
-    /// loop forever if the list is cyclic.
+    /// Print the list on one line in LISP format.
+    ///
+    /// This would loop forever if the list is cyclic.
+    /// For demo purposes, we put an artificial limit on
+    /// the loop count.
     fn print(mut self) {
-        let mut sep = "";
         print!("(");
+        let mut sep = "";
+        let mut nsteps = 0;
         while !self.is_nil() {
             print!("{sep}");
             print!("{}", self.car());
             self = self.cdr();
             sep = " ";
+
+            nsteps += 1;
+            if nsteps >= 10 {
+                println!(" ...");
+                return;
+            }
         }
         println!(")");
+    }
+
+    /// Destructively concatenate `other` onto the end of
+    /// `self`.  This will affect any lists that tail-share
+    /// with `self`, and thus should be used with extreme
+    /// caution. `nconc` can be used to create cyclic lists,
+    /// so also use caution there.
+    fn nconc(mut self, mc: MutationContext<'gc, '_>, other: List<'gc>) {
+        let mut prev = self;
+        while !self.is_nil() {
+            prev = self;
+            self = self.cdr();
+        }
+        *prev.cdr().0.write(mc) = *other.0.read();
     }
 }
 
@@ -187,5 +211,25 @@ fn main() {
     arena.mutate(|_, root| {
         root.get_list(0).print();
         root.get_list(1).print();
+    });
+
+    // `nconc` a third list onto the end of `l1`. This will
+    // also affect `l2` due to tail-sharing.
+    arena.mutate(|mc, root| {
+        let l1 = root.get_list(0);
+        let l2 = root.get_list(1);
+        let l3 = List::new(mc).cons(mc, 0);
+        l1.nconc(mc, l3);
+        l1.print();
+        l2.print();
+    });
+
+    // Use `nconc` to create a cyclic list. The good news is
+    // that this will still be GC-ed when free: the GC deals
+    // with cycles fine.
+    arena.mutate(|mc, root| {
+        let l2 = root.get_list(1);
+        l2.nconc(mc, l2);
+        l2.print();
     });
 }
